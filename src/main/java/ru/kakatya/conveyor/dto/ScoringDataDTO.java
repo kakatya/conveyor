@@ -1,6 +1,7 @@
 package ru.kakatya.conveyor.dto;
 
 import lombok.Data;
+import ru.kakatya.conveyor.dto.enums.Gender;
 import ru.kakatya.conveyor.dto.enums.MaritalStatus;
 
 import java.math.BigDecimal;
@@ -13,8 +14,12 @@ public class ScoringDataDTO {
    private String firstName;
    private String lastName;
    private String middleName;
+   private Gender gender;
    private LocalDate birthdate;
    private String passportSeries;
+   private String passportNumber;
+   private LocalDate passportIssueDate;
+   private String passportIssueBranch;
    private MaritalStatus maritalStatus;
    private Integer dependentAmount;
    private EmploymentDTO employment;

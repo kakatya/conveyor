@@ -16,12 +16,12 @@ import java.util.List;
 @RequestMapping("/conveyor")
 public class ConveyorController {
     @PostMapping("/offers")
-    public List<LoanOfferDTO> offer(@RequestBody LoanApplicationRequestDTO dto) {
+    public List<LoanOfferDTO> issueOffer(@RequestBody LoanApplicationRequestDTO dto) {
         return Collections.emptyList();
     }
 
     @PostMapping("/calculation")
-    public CreditDTO calculation(@RequestBody ScoringDataDTO dto) {
+    public CreditDTO calculateCredit(@RequestBody ScoringDataDTO dto) {
         return new CreditDTO();
     }
 }
