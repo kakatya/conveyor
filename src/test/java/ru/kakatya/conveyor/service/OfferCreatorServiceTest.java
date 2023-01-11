@@ -1,4 +1,4 @@
-package ru.kakatya.conveyor;
+package ru.kakatya.conveyor.service;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ import java.util.List;
 
 @SpringBootTest
 @ExtendWith(SpringExtension.class)
-class ConveyorApplicationTests {
+class OfferCreatorServiceTest {
 
     @Autowired
     OfferCreatorService offerCreatorService;
