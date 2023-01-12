@@ -12,7 +12,7 @@ import ru.kakatya.conveyor.dto.CreditDTO;
 import ru.kakatya.conveyor.dto.LoanApplicationRequestDTO;
 import ru.kakatya.conveyor.dto.LoanOfferDTO;
 import ru.kakatya.conveyor.dto.ScoringDataDTO;
-import ru.kakatya.conveyor.service.OfferCreatorService;
+import ru.kakatya.conveyor.service.ConveyorService;
 
 
 import java.util.List;
@@ -21,10 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/conveyor")
 public class ConveyorController {
-    private final OfferCreatorService offerCreatorService;
+    private final ConveyorService offerCreatorService;
 
     @Autowired
-    public ConveyorController(OfferCreatorService offerCreatorService) {
+    public ConveyorController(ConveyorService offerCreatorService) {
         this.offerCreatorService = offerCreatorService;
     }
 

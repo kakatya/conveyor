@@ -1,0 +1,11 @@
+{
+  "amount": 200000,
+  "birthdate": "2023-01-12",
+  "email": "string",
+  "firstName": "string",
+  "lastName": "string",
+  "middleName": "string",
+  "passportNumber": "string",
+  "passportSeries": "string",
+  "term": 24
+}

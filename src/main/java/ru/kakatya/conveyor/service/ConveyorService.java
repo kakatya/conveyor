@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.kakatya.conveyor.dto.LoanApplicationRequestDTO;
 import ru.kakatya.conveyor.dto.LoanOfferDTO;
-import ru.kakatya.conveyor.utils.CalculateCreditUtil;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collections;
@@ -15,8 +13,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Service
-public class OfferCreatorService {
-    private static final Logger LOGGER = LogManager.getLogger(OfferCreatorService.class);
+public class ConveyorService {
+    private static final Logger LOGGER = LogManager.getLogger(ConveyorService.class);
 
     @Value("${offers.default-additional-rate}")
     private String defaultAdditionalRate;
@@ -35,36 +33,21 @@ public class OfferCreatorService {
             if (loanApplicationRequestDTO.getAmount().signum() == 1) {
 
 
-                offerDTOList.add(createLoanOfferDto(Long.getLong("1"), calculateDefaultRate(),
+                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateDefaultRate(),
                         loanApplicationRequestDTO.getTerm(), false,
-                        false, loanApplicationRequestDTO.getAmount().setScale(2,RoundingMode.HALF_UP),
-                        CalculateCreditUtil.calculateMonthlyPayment(loanApplicationRequestDTO.getAmount(), calculateDefaultRate(),
-                                loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP), calculateTotalAmount(loanApplicationRequestDTO.getAmount().setScale(2,RoundingMode.HALF_UP),
-                                calculateDefaultRate(), loanApplicationRequestDTO.getTerm())));
+                        false, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.getLong("1"), calculateInsuranceClientRate(),
+                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceClientRate(),
                         loanApplicationRequestDTO.getTerm(), false,
-                        true, loanApplicationRequestDTO.getAmount(),
-                        CalculateCreditUtil.calculateMonthlyPayment(loanApplicationRequestDTO.getAmount(), calculateInsuranceClientRate().setScale(2),
-                                loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP),
-                        calculateTotalAmount(loanApplicationRequestDTO.getAmount(),
-                                calculateInsuranceClientRate(), loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP)));
+                        true, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.getLong("1"), calculateSalaryClientRate(),
+                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateSalaryClientRate(),
                         loanApplicationRequestDTO.getTerm(), true,
-                        false, loanApplicationRequestDTO.getAmount(),
-                        CalculateCreditUtil.calculateMonthlyPayment(loanApplicationRequestDTO.getAmount(), calculateSalaryClientRate().setScale(2),
-                                loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP),
-                        calculateTotalAmount(loanApplicationRequestDTO.getAmount(),
-                                calculateSalaryClientRate(), loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP)));
+                        false, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.getLong("1"), calculateInsuranceAndSalaryClientRate(),
+                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceAndSalaryClientRate(),
                         loanApplicationRequestDTO.getTerm(), true,
-                        true, loanApplicationRequestDTO.getAmount(),
-                        CalculateCreditUtil.calculateMonthlyPayment(loanApplicationRequestDTO.getAmount(), calculateInsuranceAndSalaryClientRate().setScale(2),
-                                loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP),
-                        calculateTotalAmount(loanApplicationRequestDTO.getAmount(),
-                                calculateInsuranceAndSalaryClientRate().setScale(2), loanApplicationRequestDTO.getTerm()).setScale(2,RoundingMode.HALF_UP)));
+                        true, loanApplicationRequestDTO.getAmount()));
                 return offerDTOList;
 
             } else
@@ -78,13 +61,13 @@ public class OfferCreatorService {
     private BigDecimal calculateTotalAmount(BigDecimal amount, BigDecimal rate, Integer term) {
         LOGGER.info("Calculate total amount");
 
+        BigDecimal monthlyPay = calculateMonthlyPayment(amount, rate, term);
         //p=rate/100/12
-        BigDecimal monthlyPay = CalculateCreditUtil.calculateMonthlyPayment(amount, rate, term);
         BigDecimal p = rate.setScale(8, RoundingMode.HALF_DOWN)
-                .divide(new BigDecimal("100.0"), RoundingMode.HALF_DOWN).setScale(8)
-                .divide(new BigDecimal("12.0"), RoundingMode.HALF_DOWN).setScale(8);
+                .divide(new BigDecimal("100"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
+                .divide(new BigDecimal("12"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
         BigDecimal balanceOwed = amount.setScale(24, RoundingMode.HALF_UP);
-        BigDecimal summ = new BigDecimal("0").setScale(24, RoundingMode.HALF_UP);
+        BigDecimal summ = BigDecimal.ZERO.setScale(24, RoundingMode.HALF_UP);
         BigDecimal percentage;
         BigDecimal debtPart;
 
@@ -96,14 +79,40 @@ public class OfferCreatorService {
             monthlyPay = debtPart.add(percentage).setScale(24, RoundingMode.HALF_UP);
             summ = summ.add(monthlyPay).setScale(24, RoundingMode.HALF_UP);
         }
-        LOGGER.info("Total amount is: " + summ);
+        LOGGER.info("Total amount is: {}", summ);
         return summ;
+    }
+
+    private BigDecimal calculateMonthlyPayment(BigDecimal amount, BigDecimal rate, Integer term) {
+        LOGGER.info("Calculate monthly payment");
+        //p=rate/100/12
+        BigDecimal p = rate.setScale(8, RoundingMode.HALF_DOWN)
+                .divide(new BigDecimal("100.0"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
+                .divide(new BigDecimal("12.0"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
+
+        // (1+p)^term
+        BigDecimal denominatorMinuend = p.add(BigDecimal.ONE).pow(term)
+                .setScale(24, RoundingMode.HALF_UP);
+
+        // denominator=denominatorMinuend-1
+        BigDecimal denominator = denominatorMinuend.subtract(BigDecimal.ONE)
+                .setScale(24, RoundingMode.HALF_UP);
+
+        // fraction=p/denominator
+        BigDecimal fraction = p.divide(denominator, RoundingMode.HALF_UP).setScale(24, RoundingMode.HALF_UP);
+
+        //secondMultiplier=p+fraction
+        BigDecimal secondMultiplier = p.add(fraction)
+                .setScale(24, RoundingMode.HALF_UP);
+        BigDecimal result = amount.setScale(24, RoundingMode.HALF_UP)
+                .multiply(secondMultiplier).setScale(24, RoundingMode.HALF_UP);
+        LOGGER.info("MonthlyPayment is: {}", result);
+        return result;
     }
 
     private LoanOfferDTO createLoanOfferDto(Long applicationId, BigDecimal rate,
                                             Integer term, Boolean isSalaryClient,
-                                            Boolean isInsuranceEnabled, BigDecimal requestedAmount,
-                                            BigDecimal monthlyPayment, BigDecimal totalAmount) {
+                                            Boolean isInsuranceEnabled, BigDecimal requestedAmount) {
         LOGGER.info("Create LoanOfferDto object");
         LoanOfferDTO loanOfferDTO = new LoanOfferDTO();
         loanOfferDTO.setApplicationId(applicationId);
@@ -112,8 +121,8 @@ public class OfferCreatorService {
         loanOfferDTO.setIsSalaryClient(isSalaryClient);
         loanOfferDTO.setIsInsuranceEnabled(isInsuranceEnabled);
         loanOfferDTO.setRequestedAmount(requestedAmount);
-        loanOfferDTO.setMonthlyPayment(monthlyPayment);
-        loanOfferDTO.setTotalAmount(totalAmount);
+        loanOfferDTO.setMonthlyPayment(calculateMonthlyPayment(requestedAmount, rate, term).setScale(2, RoundingMode.HALF_UP));
+        loanOfferDTO.setTotalAmount(calculateTotalAmount(requestedAmount, rate, term).setScale(2, RoundingMode.HALF_UP));
         return loanOfferDTO;
     }
 
@@ -121,14 +130,14 @@ public class OfferCreatorService {
         BigDecimal rate = calculateDefaultRate()
                 .subtract(new BigDecimal(deductibleInsuranceClientRate).setScale(2, RoundingMode.HALF_UP))
                 .subtract(new BigDecimal(deductibleSalaryClientRate).setScale(2, RoundingMode.HALF_UP));
-        LOGGER.info("Calculate rate for insurance and salary client: " + rate);
+        LOGGER.info("Calculate rate for insurance and salary client: {}%", rate);
         return rate;
     }
 
     private BigDecimal calculateInsuranceClientRate() {
         BigDecimal rate = calculateDefaultRate()
                 .subtract(new BigDecimal(deductibleInsuranceClientRate).setScale(2, RoundingMode.HALF_UP));
-        LOGGER.info("Calculate rate for insurance client: ");
+        LOGGER.info("Calculate rate for insurance client: {}%", rate);
 
         return rate;
     }
@@ -136,14 +145,14 @@ public class OfferCreatorService {
     private BigDecimal calculateSalaryClientRate() {
         BigDecimal rate = calculateDefaultRate()
                 .subtract(new BigDecimal(deductibleSalaryClientRate).setScale(2, RoundingMode.HALF_UP));
-        LOGGER.info("Calculate rate for salary client: " + rate);
+        LOGGER.info("Calculate rate for salary client: {}%", rate);
         return rate;
     }
 
     private BigDecimal calculateDefaultRate() {
         BigDecimal rate = new BigDecimal(centralBankRate).setScale(2, RoundingMode.HALF_UP)
                 .add(new BigDecimal(defaultAdditionalRate).setScale(2, RoundingMode.HALF_UP));
-        LOGGER.info("Calculate default rate of bank");
+        LOGGER.info("Calculate default rate of bank: {}%", rate);
         return rate;
     }
 
