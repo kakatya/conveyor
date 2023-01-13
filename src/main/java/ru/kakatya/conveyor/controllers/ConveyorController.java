@@ -35,7 +35,7 @@ public class ConveyorController {
         return ResponseEntity.ok().body(conveyorService.evaluateClient(dto));
     }
 
-    @ApiOperation("Скоринг данных заемщика")
+    @ApiOperation("Расчет кредита")
     @PostMapping("/calculation")
     public ResponseEntity<CreditDTO> calculateCredit(@RequestBody ScoringDataDTO dto) {
         return ResponseEntity.ok().body(conveyorService.creditCalculation(dto));
