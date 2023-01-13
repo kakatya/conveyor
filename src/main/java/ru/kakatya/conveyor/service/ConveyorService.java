@@ -4,10 +4,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.kakatya.conveyor.dto.LoanApplicationRequestDTO;
-import ru.kakatya.conveyor.dto.LoanOfferDTO;
+import ru.kakatya.conveyor.dto.*;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -56,6 +57,79 @@ public class ConveyorService {
             LOGGER.error(ex.getMessage());
         }
         return Collections.emptyList();
+    }
+
+    public CreditDTO creditCalculation(ScoringDataDTO scoringDataDTO) {
+        LOGGER.info("Calculate a loan");
+        CreditDTO creditDTO = new CreditDTO();
+        creditDTO.setRate(calculateRate(scoringDataDTO.getIsSalaryClient(), scoringDataDTO.getIsInsuranceEnabled()));
+        creditDTO.setAmount(scoringDataDTO.getAmount());
+        creditDTO.setMonthlyPayment(calculateMonthlyPayment(scoringDataDTO.getAmount(), creditDTO.getRate(), scoringDataDTO.getTerm())
+                .setScale(2, RoundingMode.HALF_UP));
+        creditDTO.setTerm(scoringDataDTO.getTerm());
+        creditDTO.setIsSalaryClient(scoringDataDTO.getIsSalaryClient());
+        creditDTO.setIsInsuranceEnabled(scoringDataDTO.getIsInsuranceEnabled());
+        creditDTO.setPsk(calculatePsk(creditDTO.getMonthlyPayment(), creditDTO.getRate(), creditDTO.getTerm())
+                .setScale(2, RoundingMode.HALF_UP));
+        creditDTO.setPaymentSchedule(calculatePaymentSchedule(creditDTO.getAmount(), creditDTO.getRate(), creditDTO.getTerm()));
+        return creditDTO;
+    }
+
+    private List<PaymentScheduleElementDto> calculatePaymentSchedule(BigDecimal amount, BigDecimal rate, Integer term) {
+        List<PaymentScheduleElementDto> paymentScheduleElementDtos = new LinkedList<>();
+        BigDecimal monthlyPay = calculateMonthlyPayment(amount, rate, term);
+        LocalDate localDate = LocalDate.now();
+        LOGGER.info("Calculate Payment schedule");
+        //p=rate/100/12
+        BigDecimal p = rate.setScale(8, RoundingMode.HALF_DOWN)
+                .divide(new BigDecimal("100"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
+                .divide(new BigDecimal("12"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
+        BigDecimal remainingDebt = amount.setScale(24, RoundingMode.HALF_UP);
+        BigDecimal totalPayment = BigDecimal.ZERO.setScale(24, RoundingMode.HALF_UP);
+        BigDecimal interestPayment;
+        BigDecimal debtPayment;
+
+        for (int i = 0; i < term; i++) {
+            PaymentScheduleElementDto paymentScheduleElementDto = new PaymentScheduleElementDto();
+
+            interestPayment = remainingDebt.multiply(p).setScale(24, RoundingMode.HALF_UP);
+            debtPayment = monthlyPay.subtract(interestPayment).setScale(24, RoundingMode.HALF_UP);
+            remainingDebt = remainingDebt.subtract(debtPayment).setScale(24, RoundingMode.HALF_UP);
+            monthlyPay = debtPayment.add(interestPayment).setScale(24, RoundingMode.HALF_UP);
+            totalPayment = totalPayment.add(monthlyPay).setScale(24, RoundingMode.HALF_UP);
+            localDate = localDate.plusMonths(1);
+
+            paymentScheduleElementDto.setNumber(i + 1);
+            paymentScheduleElementDto.setRemainingDebt(remainingDebt.setScale(2, RoundingMode.HALF_UP));
+            paymentScheduleElementDto.setTotalPayment(totalPayment.setScale(2, RoundingMode.HALF_UP));
+            paymentScheduleElementDto.setInterestPayment(interestPayment.setScale(2, RoundingMode.HALF_UP));
+            paymentScheduleElementDto.setDate(localDate);
+            paymentScheduleElementDto.setDebtPayment(debtPayment.setScale(2, RoundingMode.HALF_UP));
+            paymentScheduleElementDtos.add(paymentScheduleElementDto);
+        }
+        return paymentScheduleElementDtos;
+    }
+
+    private BigDecimal calculateRate(boolean isSalaryEnabled, boolean isInsuranceEnabled) {
+        LOGGER.info("Calculate rate");
+        if (isSalaryEnabled && isInsuranceEnabled) {
+            return calculateInsuranceAndSalaryClientRate();
+        } else if (isSalaryEnabled) {
+            return calculateSalaryClientRate();
+        } else if (isInsuranceEnabled) {
+            return calculateInsuranceClientRate();
+        }
+        return calculateDefaultRate();
+    }
+
+    private BigDecimal calculatePsk(BigDecimal amount, BigDecimal rate, int term) {
+        BigDecimal psk = calculateTotalAmount(amount, rate, term).setScale(24, RoundingMode.HALF_UP)
+                .divide(amount.setScale(24, RoundingMode.HALF_UP), RoundingMode.HALF_UP)
+                .subtract(BigDecimal.ONE)
+                .divide(new BigDecimal(Integer.toString(term)).setScale(0, RoundingMode.HALF_UP), RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100").setScale(0, RoundingMode.HALF_UP));
+        LOGGER.info("Calculate PSK: {}", psk);
+        return psk;
     }
 
     private BigDecimal calculateTotalAmount(BigDecimal amount, BigDecimal rate, Integer term) {
