@@ -81,9 +81,7 @@ public class ConveyorService {
         LocalDate localDate = LocalDate.now();
         LOGGER.info("Calculate Payment schedule");
         //p=rate/100/12
-        BigDecimal p = rate.setScale(8, RoundingMode.HALF_DOWN)
-                .divide(new BigDecimal("100"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
-                .divide(new BigDecimal("12"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
+
         BigDecimal remainingDebt = amount.setScale(24, RoundingMode.HALF_UP);
         BigDecimal totalPayment = BigDecimal.ZERO.setScale(24, RoundingMode.HALF_UP);
         BigDecimal interestPayment;
@@ -92,7 +90,7 @@ public class ConveyorService {
         for (int i = 0; i < term; i++) {
             PaymentScheduleElementDto paymentScheduleElementDto = new PaymentScheduleElementDto();
 
-            interestPayment = remainingDebt.multiply(p).setScale(24, RoundingMode.HALF_UP);
+            interestPayment = remainingDebt.multiply(calculateP(rate)).setScale(24, RoundingMode.HALF_UP);
             debtPayment = monthlyPay.subtract(interestPayment).setScale(24, RoundingMode.HALF_UP);
             remainingDebt = remainingDebt.subtract(debtPayment).setScale(24, RoundingMode.HALF_UP);
             monthlyPay = debtPayment.add(interestPayment).setScale(24, RoundingMode.HALF_UP);
@@ -108,6 +106,13 @@ public class ConveyorService {
             paymentScheduleElementDtos.add(paymentScheduleElementDto);
         }
         return paymentScheduleElementDtos;
+    }
+
+    private BigDecimal calculateP(BigDecimal rate) {
+        //p=rate/100/12
+        return rate.setScale(8, RoundingMode.HALF_DOWN)
+                .divide(new BigDecimal("100"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
+                .divide(new BigDecimal("12"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateRate(boolean isSalaryEnabled, boolean isInsuranceEnabled) {
@@ -136,10 +141,7 @@ public class ConveyorService {
         LOGGER.info("Calculate total amount");
 
         BigDecimal monthlyPay = calculateMonthlyPayment(amount, rate, term);
-        //p=rate/100/12
-        BigDecimal p = rate.setScale(8, RoundingMode.HALF_DOWN)
-                .divide(new BigDecimal("100"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP)
-                .divide(new BigDecimal("12"), RoundingMode.HALF_DOWN).setScale(8, RoundingMode.HALF_UP);
+
         BigDecimal balanceOwed = amount.setScale(24, RoundingMode.HALF_UP);
         BigDecimal summ = BigDecimal.ZERO.setScale(24, RoundingMode.HALF_UP);
         BigDecimal percentage;
@@ -147,7 +149,7 @@ public class ConveyorService {
 
 
         for (int i = 0; i < term; i++) {
-            percentage = balanceOwed.multiply(p).setScale(24, RoundingMode.HALF_UP);
+            percentage = balanceOwed.multiply(calculateP(rate)).setScale(24, RoundingMode.HALF_UP);
             debtPart = monthlyPay.subtract(percentage).setScale(24, RoundingMode.HALF_UP);
             balanceOwed = balanceOwed.subtract(debtPart).setScale(24, RoundingMode.HALF_UP);
             monthlyPay = debtPart.add(percentage).setScale(24, RoundingMode.HALF_UP);
