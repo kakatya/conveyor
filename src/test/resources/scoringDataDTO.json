@@ -1,0 +1,26 @@
+{
+  "account": "string",
+  "amount": 200000,
+  "birthdate": "2023-01-12",
+  "dependentAmount": 0,
+  "employment": {
+    "employerINN": "string",
+    "employmentStatus": "BUSINESS_OWNER",
+    "position": "MID_MANAGER",
+    "salary": 0,
+    "workExperienceCurrent": 0,
+    "workExperienceTotal": 0
+  },
+  "firstName": "string",
+  "gender": "FEMALE",
+  "isInsuranceEnabled": true,
+  "isSalaryClient": true,
+  "lastName": "string",
+  "maritalStatus": "DIVORCED",
+  "middleName": "string",
+  "passportIssueBranch": "string",
+  "passportIssueDate": "2023-01-12",
+  "passportNumber": "string",
+  "passportSeries": "string",
+  "term": 24
+}

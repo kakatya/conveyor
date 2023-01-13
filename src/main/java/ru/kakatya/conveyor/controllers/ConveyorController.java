@@ -21,23 +21,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/conveyor")
 public class ConveyorController {
-    private final ConveyorService offerCreatorService;
+    private final ConveyorService conveyorService;
 
     @Autowired
     public ConveyorController(ConveyorService offerCreatorService) {
-        this.offerCreatorService = offerCreatorService;
+        this.conveyorService = offerCreatorService;
     }
 
 
     @ApiOperation("Подборка кредитных предложений")
     @PostMapping("/offers")
     public ResponseEntity<List<LoanOfferDTO>> issueOffer(@RequestBody LoanApplicationRequestDTO dto) {
-        return ResponseEntity.ok().body(offerCreatorService.evaluateClient(dto));
+        return ResponseEntity.ok().body(conveyorService.evaluateClient(dto));
     }
 
-    @ApiOperation("Скоринг данных заемщика")
+    @ApiOperation("Расчет кредита")
     @PostMapping("/calculation")
-    public CreditDTO calculateCredit(@RequestBody ScoringDataDTO dto) {
-        return new CreditDTO();
+    public ResponseEntity<CreditDTO> calculateCredit(@RequestBody ScoringDataDTO dto) {
+        return ResponseEntity.ok().body(conveyorService.creditCalculation(dto));
     }
 }
