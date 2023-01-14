@@ -30,8 +30,7 @@ public class ConveyorController {
     @ApiOperation("Подборка кредитных предложений")
     @PostMapping("/offers")
     public ResponseEntity<List<LoanOfferDTO>> issueOffer(@RequestBody LoanApplicationRequestDTO dto) {
-        List<LoanOfferDTO> loanOfferDTOS = conveyorService.evaluateClient(dto);
-        return ResponseEntity.ok().body(loanOfferDTOS);
+        return ResponseEntity.ok().body(conveyorService.evaluateClient(dto));
     }
 
     @ApiOperation("Расчет кредита")
