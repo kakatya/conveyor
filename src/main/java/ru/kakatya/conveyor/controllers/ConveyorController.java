@@ -14,7 +14,6 @@ import ru.kakatya.conveyor.dto.LoanOfferDTO;
 import ru.kakatya.conveyor.dto.ScoringDataDTO;
 import ru.kakatya.conveyor.service.ConveyorService;
 
-
 import java.util.List;
 
 @Api(tags = "Контроллер кредитного конвейера")
@@ -28,11 +27,11 @@ public class ConveyorController {
         this.conveyorService = offerCreatorService;
     }
 
-
     @ApiOperation("Подборка кредитных предложений")
     @PostMapping("/offers")
     public ResponseEntity<List<LoanOfferDTO>> issueOffer(@RequestBody LoanApplicationRequestDTO dto) {
-        return ResponseEntity.ok().body(conveyorService.evaluateClient(dto));
+        List<LoanOfferDTO> loanOfferDTOS = conveyorService.evaluateClient(dto);
+        return ResponseEntity.ok().body(loanOfferDTOS);
     }
 
     @ApiOperation("Расчет кредита")

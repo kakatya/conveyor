@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 import ru.kakatya.conveyor.dto.*;
 import ru.kakatya.conveyor.dto.enums.EmploymentStatus;
 import ru.kakatya.conveyor.dto.enums.MaritalStatus;
-
+import ru.kakatya.conveyor.exception.PrescoringException;
+import ru.kakatya.conveyor.exception.ScoringException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -29,46 +30,33 @@ public class ConveyorService {
     @Value("${offers.deductible-salary-client-rate}")
     private String deductibleSalaryClientRate;
 
-    public List<LoanOfferDTO> evaluateClient(LoanApplicationRequestDTO loanApplicationRequestDTO) {
+    public List<LoanOfferDTO> evaluateClient(LoanApplicationRequestDTO loanApplicationRequestDTO) throws PrescoringException {
         List<LoanOfferDTO> offerDTOList = new LinkedList<>();
         LOGGER.info("Creation of loan offers");
-        try {
-            if (prescoring(loanApplicationRequestDTO)) {
+        prescoring(loanApplicationRequestDTO);
 
 
-                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateDefaultRate(),
-                        loanApplicationRequestDTO.getTerm(), false,
-                        false, loanApplicationRequestDTO.getAmount()));
+        offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateDefaultRate(),
+                loanApplicationRequestDTO.getTerm(), false,
+                false, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceClientRate(),
-                        loanApplicationRequestDTO.getTerm(), false,
-                        true, loanApplicationRequestDTO.getAmount()));
+        offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceClientRate(),
+                loanApplicationRequestDTO.getTerm(), false,
+                true, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateSalaryClientRate(),
-                        loanApplicationRequestDTO.getTerm(), true,
-                        false, loanApplicationRequestDTO.getAmount()));
+        offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateSalaryClientRate(),
+                loanApplicationRequestDTO.getTerm(), true,
+                false, loanApplicationRequestDTO.getAmount()));
 
-                offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceAndSalaryClientRate(),
-                        loanApplicationRequestDTO.getTerm(), true,
-                        true, loanApplicationRequestDTO.getAmount()));
-                return offerDTOList;
-
-            }
-        } catch (Exception e) {
-            LOGGER.error(e.getMessage());
-        }
-
-        LOGGER.info("loanApplicationRequest is incorrect");
-        return Collections.emptyList();
+        offerDTOList.add(createLoanOfferDto(Long.parseLong("1"), calculateInsuranceAndSalaryClientRate(),
+                loanApplicationRequestDTO.getTerm(), true,
+                true, loanApplicationRequestDTO.getAmount()));
+        return offerDTOList;
     }
 
-    public CreditDTO creditCalculation(ScoringDataDTO scoringDataDTO) {
-        BigDecimal rate = null;
-        try {
-            rate = scoring(scoringDataDTO).setScale(8, RoundingMode.HALF_UP);
-        } catch (Exception e) {
-            LOGGER.error(e.getMessage());
-        }
+    public CreditDTO creditCalculation(ScoringDataDTO scoringDataDTO) throws ScoringException {
+        BigDecimal rate = scoring(scoringDataDTO).setScale(8, RoundingMode.HALF_UP);
+
         LOGGER.info("Calculate a loan");
         CreditDTO creditDTO = new CreditDTO();
         creditDTO.setRate(rate);
@@ -81,8 +69,9 @@ public class ConveyorService {
         creditDTO.setPsk(calculatePsk(creditDTO.getMonthlyPayment(), creditDTO.getRate(), creditDTO.getTerm())
                 .setScale(2, RoundingMode.HALF_UP));
         creditDTO.setPaymentSchedule(calculatePaymentSchedule(creditDTO.getAmount(), creditDTO.getRate(), creditDTO.getTerm()));
-        LOGGER.info("Application rejected");
+
         return creditDTO;
+
     }
 
     private List<PaymentScheduleElementDto> calculatePaymentSchedule(BigDecimal amount, BigDecimal rate, Integer term) {
@@ -160,7 +149,6 @@ public class ConveyorService {
 
 
         for (int i = 0; i < term; i++) {
-
             percentage = balanceOwed.multiply(p.setScale(24, RoundingMode.HALF_UP));
             debtPart = monthlyPay.subtract(percentage).setScale(24, RoundingMode.HALF_UP);
             balanceOwed = balanceOwed.subtract(debtPart).setScale(24, RoundingMode.HALF_UP);
@@ -210,9 +198,10 @@ public class ConveyorService {
         return loanOfferDTO;
     }
 
-    private boolean prescoring(LoanApplicationRequestDTO loanApplicationRequestDTO) throws Exception {
+    private void prescoring(LoanApplicationRequestDTO loanApplicationRequestDTO) throws PrescoringException {
         LOGGER.info("Prescoring");
-
+        boolean result = true;
+        List<String> message = new ArrayList<>();
         LocalDate today = LocalDate.now();
         String emailPattern = "[\\w\\.]{2,50}@[\\w\\.]{2,20}";
         String clientNamePattern = "^[A-Z][a-z]{1,29}";
@@ -225,77 +214,85 @@ public class ConveyorService {
 
         if (!name.matcher(loanApplicationRequestDTO.getFirstName()).matches() &&
                 !name.matcher(loanApplicationRequestDTO.getLastName()).matches()) {
-            LOGGER.info("Client name is incorrect");
-            throw new Exception("Client name is incorrect");
+            result = false;
+            message.add("Client name is incorrect ");
         }
         if (loanApplicationRequestDTO.getMiddleName() != null &&
                 !name.matcher(loanApplicationRequestDTO.getMiddleName()).matches()) {
-            LOGGER.info("Client middle name is incorrect");
-            throw new Exception("Client middle name is incorrect");
+            result = false;
+            message.add("Client middle name is incorrect ");
         }
 
 
         if (!email.matcher(loanApplicationRequestDTO.getEmail()).matches()) {
-            LOGGER.info("Client email is incorrect");
-            throw new Exception("Client email is incorrect");
+            result = false;
+            message.add("Client email is incorrect ");
         }
 
 
         if (ChronoUnit.YEARS.between(loanApplicationRequestDTO.getBirthdate(), today) < 18) {
-            LOGGER.info("Client does not pass by age");
-            throw new Exception("Client does not pass by age");
+            result = false;
+            message.add("Client does not pass by age ");
         }
 
         if (!passportSeries.matcher(loanApplicationRequestDTO.getPassportSeries()).matches() &&
                 !passportNumber.matcher(loanApplicationRequestDTO.getPassportNumber()).matches()) {
-            LOGGER.info("Passport's date is incorrect");
-            throw new Exception("Passport's date is incorrect");
+            result = false;
+            message.add("Passport's date is incorrect ");
         }
         if (loanApplicationRequestDTO.getAmount().compareTo(new BigDecimal("10000")) < 0) {
-            LOGGER.info("Request amount is incorrect");
-            throw new Exception("Request amount is incorrect");
+            result = false;
+            message.add("Request amount is incorrect ");
         }
 
         if (loanApplicationRequestDTO.getTerm() < 6) {
-            LOGGER.info("Term is incorrect");
-            throw new Exception("Term is incorrect");
+            result = false;
+            message.add("Term is incorrect");
         }
-        return true;
+        if (!result) {
+            LOGGER.error(message);
+            throw new PrescoringException(message.toString());
+        }
     }
 
-    private BigDecimal scoring(ScoringDataDTO scoringDataDTO) throws Exception {
+    private BigDecimal scoring(ScoringDataDTO scoringDataDTO) throws ScoringException {
         LOGGER.info("Scoring");
+        List<String> message = new ArrayList<>();
         BigDecimal rate = calculateRate(scoringDataDTO.getIsSalaryClient(), scoringDataDTO.getIsInsuranceEnabled());
         LocalDate toDay = LocalDate.now();
         if (scoringDataDTO.getEmployment().getEmploymentStatus().name().equals(EmploymentStatus.UNEMPLOYED.name())) {
-            LOGGER.info("Client is unemployed");
-            throw new Exception("Client is unemployed");
+            message.add("Client is unemployed");
+            rate = BigDecimal.ZERO;
         }
 
 
         if (scoringDataDTO.getEmployment().getSalary().multiply(new BigDecimal("20"))
                 .compareTo(scoringDataDTO.getAmount()) < 0) {
-            LOGGER.info("client's salary is not enough");
-            throw new Exception("client's salary is not enough");
+            message.add("client's salary is not enough");
+            rate = BigDecimal.ZERO;
         }
 
         if (ChronoUnit.YEARS.between(scoringDataDTO.getBirthdate(), toDay) < 20 ||
                 ChronoUnit.YEARS.between(scoringDataDTO.getBirthdate(), toDay) > 60) {
-            LOGGER.info("the client does not pass by age");
-            throw new Exception("the client does not pass by age");
+            message.add("the client does not pass by age");
+            rate = BigDecimal.ZERO;
+        }
+        if (rate.equals(BigDecimal.ZERO)) {
+            LOGGER.error(message);
+            throw new ScoringException(message.toString());
+        } else {
+            if (scoringDataDTO.getMaritalStatus().name().equals(MaritalStatus.MARRIED.name()))
+                rate = rate.setScale(8, RoundingMode.HALF_UP).subtract(new BigDecimal("0.3")).setScale(8, RoundingMode.HALF_UP);
+
+            if (scoringDataDTO.getEmployment().getEmploymentStatus().name().equals(EmploymentStatus.BUSINESS_OWNER.name()))
+                rate = rate.setScale(8, RoundingMode.HALF_UP).add(new BigDecimal("3").setScale(8, RoundingMode.HALF_UP));
+
+            if (scoringDataDTO.getEmployment().getEmploymentStatus().name().equals(EmploymentStatus.SELF_EMPLOYED.name()))
+                rate = rate.setScale(8, RoundingMode.HALF_UP).add(new BigDecimal("1.5").setScale(8, RoundingMode.HALF_UP));
+
+            LOGGER.info("Finale rate: {}", rate);
         }
 
-
-        if (scoringDataDTO.getMaritalStatus().name().equals(MaritalStatus.MARRIED.name()))
-            rate = rate.setScale(8, RoundingMode.HALF_UP).subtract(new BigDecimal("0.3")).setScale(8, RoundingMode.HALF_UP);
-
-        if (scoringDataDTO.getEmployment().getEmploymentStatus().name().equals(EmploymentStatus.BUSINESS_OWNER.name()))
-            rate = rate.setScale(8, RoundingMode.HALF_UP).add(new BigDecimal("3").setScale(8, RoundingMode.HALF_UP));
-
-        if (scoringDataDTO.getEmployment().getEmploymentStatus().name().equals(EmploymentStatus.SELF_EMPLOYED.name()))
-            rate = rate.setScale(8, RoundingMode.HALF_UP).add(new BigDecimal("1.5").setScale(8, RoundingMode.HALF_UP));
-
-        LOGGER.info("Finale rate: {}", rate);
         return rate;
     }
 
