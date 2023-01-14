@@ -15,5 +15,19 @@ public class ErrorMessage {
         this.description = description;
     }
 
+    public int getStatusCode() {
+        return statusCode;
+    }
 
+    public Date getTimestamp() {
+        return timestamp;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 }
