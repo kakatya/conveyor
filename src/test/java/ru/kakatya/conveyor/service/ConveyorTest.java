@@ -49,8 +49,9 @@ class ConveyorTest {
             Assertions.assertEquals(monthlyPayments.get(i), loanOfferDTOS.get(i).getMonthlyPayment(), "Monthly pay is not correct");
         }
         Assertions.assertTrue(listSorted, "List did not sort");
-        Assertions.assertEquals(creditDTO.getMonthlyPayment(), monthlyPayments.get(3), "Monthly payment is incorrect");
-        Assertions.assertEquals(creditDTO.getPaymentSchedule().get(4).getDebtPayment(), new BigDecimal("7715.76"), "Debt payments is incorrect");
+        Assertions.assertEquals(creditDTO.getMonthlyPayment(), new BigDecimal("85962.42"), "Monthly payment is incorrect");
+        Assertions.assertEquals(creditDTO.getPaymentSchedule().get(4).getDebtPayment(), new BigDecimal("81775.09"), "Debt payments is incorrect");
+
     }
 
     private LoanApplicationRequestDTO createLoanApplicationRequestDTO() {

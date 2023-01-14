@@ -1,13 +1,13 @@
 {
   "account": "string",
-  "amount": 200000,
-  "birthdate": "2023-01-12",
+  "amount": 2000000,
+  "birthdate": "2000-01-12",
   "dependentAmount": 0,
   "employment": {
     "employerINN": "string",
     "employmentStatus": "BUSINESS_OWNER",
     "position": "MID_MANAGER",
-    "salary": 0,
+    "salary": 500000,
     "workExperienceCurrent": 0,
     "workExperienceTotal": 0
   },
